@@ -1,0 +1,81 @@
+<html>
+<head>
+	<title>HackGPT</title>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.0/dist/js.cookie.min.js"></script>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+	<script>
+		$(document).ready(function() {
+			// Send the form on enter keypress and avoid if shift is pressed
+			$('#prompt').keypress(function(event) {
+				if (event.keyCode === 13 && !event.shiftKey) {
+					event.preventDefault();
+					$('form').submit();
+				}
+			});
+			$('form').on('submit', function(event) {
+				event.preventDefault();
+			// get the CSRF token from the cookie
+			var csrftoken = Cookies.get('csrftoken');
+			
+			// set the CSRF token in the AJAX headers
+			$.ajaxSetup({
+				headers: { 'X-CSRFToken': csrftoken }
+			});
+				// Get the prompt
+				var prompt = $('#prompt').val();
+				var safe = $('#safe').is(':checked');
+				var bot = $('#bot').find(":selected").val();
+				var clear_history = $('#clearhist').is(':checked');
+				var dateTime = new Date();
+				var time = dateTime.toLocaleTimeString();
+				// Add the prompt to the response div
+				if (clear_history){$('#response').empty();}
+				$('#response').append('<p id="GFG1">('+ time + ') 👤: ' + prompt + '</p>');
+				$('#response #GFG1').css({"color": "blue", "width": "90%", "float": "left"});
+				// Clear the prompt
+				$('#prompt').val('');
+				// clear the check history if it was checked or not
+				$('#clearhist').prop("checked", false);
+				$.ajax({
+					url: '/',
+					type: 'POST',
+					data: {prompt: prompt, safe: safe, bot: bot, clearhistory: clear_history},
+					dataType: 'json',
+					success: function(data) {
+						$('#response').append('<p id="GFG2">('+ time + ') 🤖: ' + data.response + '</p>');
+						$('#response #GFG2').css({"color": "black", "width": "95%", "float": "right"});
+					}
+				});
+			});
+		});
+	</script>
+</head>
+<body>
+	<div class="container p-3">
+		<h3>HackGPT - A Quick Prompt Hacking Sandbox</h3>
+		<div class="mb-3">
+			<form method="post" action="">
+				<label for="bot">Choose Bot:</label>
+				<select name="bot" width="300px" id="bot">
+					{% for o in option_list %}
+					<option value="{{ o[1] }}">{{ o[2] }}</option>
+					{% endfor %}
+				</select><br>
+				<label for="prompt" class="form-label"><strong>Prompt: </strong></label>
+				<textarea class="form-control" type="textarea" id="prompt" name="prompt" rows="3"></textarea>
+				<label for="safe">Check to enable safety:  </label><input type="checkbox" id="safe" name="safe">
+				<label for="safe">Check to clear history:  </label><input type="checkbox" id="clearhist" name="clear">
+				<br>
+				<button class="btn btn-primary " type="submit">Submit</button>
+			</form>
+		</div>
+		<br>
+		<div class="mb-3">
+			<h6>Response:</h6>
+			<div class="container border overflow-auto h-50" id="response"></div>
+			
+		</div>
+	</div>
+</body>
+</html>
