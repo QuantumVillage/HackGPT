@@ -17,6 +17,7 @@ class StackGPT(object):
         message - the 'few shot' examples that help tune the output.
         """
         self.system_prompt = {'role':'system','content':system_prompt}
+        self.system_prompt_embedding = self.get_embedding(system_prompt)
         self.message_history = []
         self.msg_limit = 20
         self.model_instance = model
@@ -104,9 +105,8 @@ class StackGPT(object):
         return t, safety_text
     
     def check_cos_scope(self, resp):
-        system_embed = self.get_embedding(self.system_prompt['content'])
         resp_embed = self.get_embedding(resp)
-        return self.get_cos_sim(system_embed, resp_embed)
+        return self.get_cos_sim(self.system_prompt_embedding, resp_embed)
     
     def safe_response(self, user_input):
         t, _ = self.safe_check(user_input)
