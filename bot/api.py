@@ -2,9 +2,13 @@ import openai
 import secrets
 import re
 import inspect
+import os
+import tiktoken
+import math
 
 # get your key from: https://platform.openai.com/account/api-keys
-openai.api_key = "sk-..."
+# export OPENAI_API_KEY='sk-...'
+openai.api_key = os.environ['OPENAI_API_KEY']
 
 class StackGPT(object):
     def __init__(self,system_prompt="", messages=[], model="gpt-3.5-turbo-0613"):
@@ -16,6 +20,26 @@ class StackGPT(object):
         self.message_history = []
         self.msg_limit = 20
         self.model_instance = model
+
+    def get_num_tokens(self, query:str, encoding_name="cl100k_base") -> int:
+        encoding = tiktoken.get_encoding(encoding_name)
+        return len(encoding.encode(query))
+    
+    def get_embedding(self, text, model="text-embedding-ada-002"):
+        text = text.replace("\n", " ")
+        return openai.Embedding.create(input = [text], model=model).data[0].embedding
+    
+    def get_cos_sim(self, a, b):
+        # compute cosine similarity of a to b: (a dot b)/{|a|*|b|)
+        sum_xx, sum_xy, sum_yy = 0, 0, 0
+        n = len(a)
+        for i in range(n):
+            x = a[i]
+            y = b[i]
+            sum_xx += x * x
+            sum_xy += x * y
+            sum_yy += y * y
+        return sum_xy / math.sqrt(sum_xx * sum_yy)
     
     def clear_history(self):
         self.message_history = []
@@ -76,13 +100,27 @@ class StackGPT(object):
         for i in range(len(safety_response["choices"])):
             safety_text += safety_response.choices[i].message.content
         t = not re.search("({}|prompt)".format(rand_str), safety_text, flags=re.I)
-        print(safety_text) # for the demo...
+        #print(safety_text) # for the demo...
         return t, safety_text
+    
+    def check_cos_scope(self, resp):
+        system_embed = self.get_embedding(self.system_prompt['content'])
+        resp_embed = self.get_embedding(resp)
+        return self.get_cos_sim(system_embed, resp_embed)
     
     def safe_response(self, user_input):
         t, _ = self.safe_check(user_input)
         if t: # if it's safe...
-            return self.get_response(user_input)
+            response = self.get_response(user_input)
+            cos_check_val = self.check_cos_scope(response)
+            print("[i] Cos Check value: {}".format(cos_check_val))
+            if cos_check_val < 0.72:
+                # the value of 0.72 seems to work unreasonably well for detecting 'out of system prompt scope'. -MC
+                print("[!] response: {}".format(response))
+                return "Error - response out of scope"
+            else:
+                return response
+                
         else:
             return "Error - unsafe query"
 
