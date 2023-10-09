@@ -18,7 +18,8 @@ class StackGPT(object):
         """
         self.system_prompt = {'role':'system','content':system_prompt}
         self.system_prompt_embedding = self.get_embedding(system_prompt)
-        self.message_history = []
+        self.base_messages = messages.copy()
+        self.message_history = messages.copy()
         self.msg_limit = 20
         self.model_instance = model
 
@@ -43,7 +44,7 @@ class StackGPT(object):
         return sum_xy / math.sqrt(sum_xx * sum_yy)
     
     def clear_history(self):
-        self.message_history = []
+        self.message_history = self.base_messages.copy()
     
     def update_message_history(self, user, assistant):
         if len(self.message_history) + 2 > self.msg_limit:
@@ -98,7 +99,7 @@ class StackGPT(object):
         for i in range(len(safety_response["choices"])):
             safety_text += safety_response.choices[i].message.content
         t = not re.search("({}|prompt)".format(rand_str), safety_text, flags=re.I)
-        #print(safety_text) # for the demo...
+        print(safety_text) # for the demo...
         return t, safety_text
     
     def check_cos_scope(self, resp):
